@@ -1,5 +1,9 @@
 #include "ProductionLine.h"
+#include "factory.h"
 #include "Async/Async.h"
+#include "Engine/World.h"
+#include "Math/RandomStream.h"
+#include "TimerManager.h"
 
 AProductionLine::AProductionLine()
 {
@@ -9,59 +13,92 @@ AProductionLine::AProductionLine()
     CurrentState = EProductionState::Operational;
     LineID = 0;
 }
+
 void AProductionLine::BeginPlay()
 {
     Super::BeginPlay();
-    InitiateMonitoring();  // Inicia la monitorización de parámetros
+    InitiateMonitoring();
+}
+
+void AProductionLine::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    GetWorldTimerManager().ClearTimer(Timer_Update);
+    Super::EndPlay(EndPlayReason);
 }
 
 void AProductionLine::InitiateMonitoring()
 {
-    // Establece un temporizador para actualizar los parámetros cada segundo
-    GetWorld()->GetTimerManager().SetTimer(Timer_Update, this, &AProductionLine::UpdateData, 1.0f, true);
+    GetWorldTimerManager().SetTimer(Timer_Update, this, &AProductionLine::UpdateData, UpdateInterval, true);
+}
+
+EProductionState AProductionLine::ComputeState(float InEfficiency, float InResourceLevel, float InOperationalThreshold, float InWarningThreshold)
+{
+    if (InEfficiency >= InOperationalThreshold && InResourceLevel >= InOperationalThreshold)
+    {
+        return EProductionState::Operational;
+    }
+    if (InEfficiency >= InWarningThreshold && InResourceLevel >= InWarningThreshold)
+    {
+        return EProductionState::Warning;
+    }
+    return EProductionState::Critical;
 }
 
 void AProductionLine::UpdateData()
 {
-    // Ejecuta en un hilo del pool para evitar bloquear el hilo principal
-    Async(EAsyncExecution::ThreadPool, [this]() 
+    // Copy everything the worker needs: the background task must never read or write this actor.
+    const float StartEfficiency = Efficiency;
+    const float StartResourceLevel = ResourceLevel;
+    const float MaxDelta = MaxDeltaPerUpdate;
+    const int32 Seed = static_cast<int32>(FPlatformTime::Cycles() ^ GetUniqueID());
+
+    // Weak pointer: if the line is destroyed before the task finishes, the result is simply dropped.
+    TWeakObjectPtr<AProductionLine> WeakThis(this);
+
+    Async(EAsyncExecution::ThreadPool, [WeakThis, StartEfficiency, StartResourceLevel, MaxDelta, Seed]()
+    {
+        // Local random stream: each task owns its generator instead of sharing global state across threads.
+        FRandomStream Stream(Seed);
+        const float NewEfficiency = FMath::Clamp(StartEfficiency + Stream.FRandRange(-MaxDelta, MaxDelta), 0.f, 100.f);
+        const float NewResourceLevel = FMath::Clamp(StartResourceLevel + Stream.FRandRange(-MaxDelta, MaxDelta), 0.f, 100.f);
+
+        // Back to the game thread to touch UObjects and broadcast delegates.
+        AsyncTask(ENamedThreads::GameThread, [WeakThis, NewEfficiency, NewResourceLevel]()
         {
-        // Genera deltas aleatorios para eficiencia y nivel de recursos
-        float EfficiencyDelta   = FMath::RandRange(-5.0f, 5.0f);
-        float ResourceDelta     = FMath::RandRange(-5.0f, 5.0f);
-
-        // Calcula los nuevos valores para eficiencia y recursos
-        float NewEfficiency     = FMath::Clamp(Efficiency + EfficiencyDelta, 0.0f, 100.0f);
-        float NewResource       = FMath::Clamp(ResourceLevel + ResourceDelta, 0.0f, 100.0f);
-
-        // Determina el nuevo estado de la producción según los valores calculados
-        EProductionState NewState;
-        if (NewEfficiency >= 75.0f && NewResource >= 75.0f)
-            NewState = EProductionState::Operational;
-        else if (NewEfficiency >= 50.0f && NewResource >= 50.0f)
-            NewState = EProductionState::Warning;
-        else
-            NewState = EProductionState::Critical;
-
-        // Devuelve al hilo principal para actualizar las variables y comprobar el estado
-        AsyncTask(ENamedThreads::GameThread, [this, NewEfficiency, NewResource, NewState]() 
+            if (AProductionLine* Line = WeakThis.Get())
             {
-            Efficiency = NewEfficiency;
-            ResourceLevel = NewResource;
-
-            // Si el estado cambia, emite el delegado de cambio de estado
-            if (NewState != CurrentState)
-            {
-                CurrentState = NewState;
-                OnStateChanged.Broadcast(NewState, LineID);
+                Line->ApplyValues(NewEfficiency, NewResourceLevel);
             }
-            });
         });
+    });
+}
+
+void AProductionLine::ApplyValues(float NewEfficiency, float NewResourceLevel)
+{
+    check(IsInGameThread());
+
+    Efficiency = NewEfficiency;
+    ResourceLevel = NewResourceLevel;
+
+    const EProductionState NewState = ComputeState(Efficiency, ResourceLevel, OperationalThreshold, WarningThreshold);
+    if (NewState != CurrentState)
+    {
+        CurrentState = NewState;
+        UE_LOG(LogFactory, Verbose, TEXT("Line %d -> %s (Efficiency %.1f, Resources %.1f)"),
+            LineID, *UEnum::GetDisplayValueAsText(NewState).ToString(), Efficiency, ResourceLevel);
+        OnStateChanged.Broadcast(NewState, LineID);
+    }
+
+    OnValuesUpdated.Broadcast(this);
 }
 
 void AProductionLine::ResetLine()
 {
-    Efficiency = 100.f;
-    ResourceLevel = 100.f;
-    CurrentState = EProductionState::Operational;
+    RestoreLine(100.f);
+}
+
+void AProductionLine::RestoreLine(float Level)
+{
+    const float ClampedLevel = FMath::Clamp(Level, 0.f, 100.f);
+    ApplyValues(ClampedLevel, ClampedLevel);
 }

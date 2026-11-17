@@ -3,9 +3,15 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "ProductionLine.h"
-#include "UIFactoryHUD.h"
 #include "CentralManager.generated.h"
 
+class UUIFactoryHUD;
+
+/**
+ * Central manager of the factory. Registers every AProductionLine in the level, listens to their
+ * state changes through their delegates, creates the HUD and raises the emergency warning when a
+ * line becomes Critical.
+ */
 UCLASS()
 class FACTORY_API ACentralManager : public AActor
 {
@@ -13,24 +19,35 @@ class FACTORY_API ACentralManager : public AActor
 
 public:
     ACentralManager();
-    virtual void BeginPlay() override;
 
-    // Handles state changes for production lines and performs additional tasks
+    /** Bound to every line's OnStateChanged delegate. */
     UFUNCTION()
     void OnProductionLineStateChanged(EProductionState NewState, int32 LineID);
 
-    // Stores the production states of each line in the factory
-    UPROPERTY(BlueprintReadOnly)
+    /** Last known state of each line, keyed by LineID. */
+    UPROPERTY(BlueprintReadOnly, Category = "Production")
     TMap<int32, EProductionState> ProductionLineStates;
 
-    // UI reference exposed to the editor, allowing assignment of custom UI widgets
+    /** Widget class used for the HUD. Must be set in the editor (BP_FactoryManager). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "User Interface")
     TSubclassOf<UUIFactoryHUD> UIFactoryHUDClass;
 
-    // A pointer to the HUD widget instance
-    UUIFactoryHUD* UIFactoryHUD;
+    /** Also print state changes on screen (they always go to the LogFactory category). */
+    UPROPERTY(EditAnywhere, Category = "Debug")
+    bool bShowOnScreenDebug = true;
 
 protected:
-    // Checks for emergency situations and triggers appropriate actions
+    virtual void BeginPlay() override;
+
+    /** Raises the emergency warning on the HUD. */
     void DetectEmergencies();
+
+private:
+    /** HUD instance. UPROPERTY so the garbage collector tracks the reference. */
+    UPROPERTY(Transient)
+    TObjectPtr<UUIFactoryHUD> UIFactoryHUD;
+
+    /** Registered lines, sorted by LineID. */
+    UPROPERTY(Transient)
+    TArray<TObjectPtr<AProductionLine>> ProductionLines;
 };
