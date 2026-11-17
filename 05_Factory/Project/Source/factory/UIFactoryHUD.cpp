@@ -10,17 +10,27 @@ void UUIFactoryHUD::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    // Slots are found by naming convention. A missing widget is stored as nullptr so that
+    // If the widget Blueprint already filled an array (its Construct event runs inside Super::NativeConstruct),
+    // keep it. Otherwise find the slots by naming convention. A missing widget is stored as nullptr so that
     // index N always matches line N (the arrays never shift).
-    EfficiencyBars.Reset();
-    ResourceBars.Reset();
-    LineStatusTexts.Reset();
+    const bool bFillEfficiency = EfficiencyBars.IsEmpty();
+    const bool bFillResources = ResourceBars.IsEmpty();
+    const bool bFillTexts = LineStatusTexts.IsEmpty();
 
     for (int32 i = 0; i < NumLines; ++i)
     {
-        EfficiencyBars.Add(Cast<UProgressBar>(GetWidgetFromName(FName(*FString::Printf(TEXT("EfficiencyBar_Line%d"), i)))));
-        ResourceBars.Add(Cast<UProgressBar>(GetWidgetFromName(FName(*FString::Printf(TEXT("ResourceBar_Line%d"), i)))));
-        LineStatusTexts.Add(Cast<UTextBlock>(GetWidgetFromName(FName(*FString::Printf(TEXT("LineStatusText%d"), i)))));
+        if (bFillEfficiency)
+        {
+            EfficiencyBars.Add(Cast<UProgressBar>(GetWidgetFromName(FName(*FString::Printf(TEXT("EfficiencyBar_Line%d"), i)))));
+        }
+        if (bFillResources)
+        {
+            ResourceBars.Add(Cast<UProgressBar>(GetWidgetFromName(FName(*FString::Printf(TEXT("ResourceBar_Line%d"), i)))));
+        }
+        if (bFillTexts)
+        {
+            LineStatusTexts.Add(Cast<UTextBlock>(GetWidgetFromName(FName(*FString::Printf(TEXT("LineStatusText%d"), i)))));
+        }
     }
 
     if (EmergencyWarning)
