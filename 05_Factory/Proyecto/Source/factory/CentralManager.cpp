@@ -1,48 +1,56 @@
 #include "CentralManager.h"
-#include "Kismet/GameplayStatics.h"
-#include "Engine/Engine.h"
+#include "factory.h"
 #include "UIFactoryHUD.h"
+#include "Algo/Sort.h"
+#include "Engine/Engine.h"
+#include "EngineUtils.h"
+#include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
 
 ACentralManager::ACentralManager()
 {
     PrimaryActorTick.bCanEverTick = false;
 }
+
 void ACentralManager::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Coger el controlador del personaje para modificar sus opciones
-    auto PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-
-    if (PlayerController)
+    // UI-driven simulation: show the cursor and route input to the widgets.
+    if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
     {
         PlayerController->bShowMouseCursor = true;
         PlayerController->SetInputMode(FInputModeUIOnly());
     }
 
-    // Recuperar todas las lineas de producción del mundo
-    TArray<AActor*> FoundActors;
-    TArray<AProductionLine*> ProductionLines;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AProductionLine::StaticClass(), FoundActors);
-
-    for (AActor* Actor : FoundActors)
+    // Register every production line in the level and subscribe to its state changes.
+    for (TActorIterator<AProductionLine> It(GetWorld()); It; ++It)
     {
-        AProductionLine* Line = Cast<AProductionLine>(Actor);
+        AProductionLine* Line = *It;
         ProductionLines.Add(Line);
-        if (Line)
-            Line->OnStateChanged.AddDynamic(this, &ACentralManager::OnProductionLineStateChanged);
+        ProductionLineStates.Add(Line->LineID, Line->CurrentState);
+        Line->OnStateChanged.AddUniqueDynamic(this, &ACentralManager::OnProductionLineStateChanged);
     }
 
-    // Ver si UIFactoryHUD es válido antes de crear el widget de la HUD
-    if (UIFactoryHUDClass)
+    // Actor iteration order is not guaranteed: sort so that HUD slot N always shows the same line.
+    Algo::Sort(ProductionLines, [](const TObjectPtr<AProductionLine>& A, const TObjectPtr<AProductionLine>& B)
     {
-        // Instanciar el widget de la HUD
-        UIFactoryHUD = CreateWidget<UUIFactoryHUD>(GetWorld(), UIFactoryHUDClass);
-        if (UIFactoryHUD)
-        {
-            UIFactoryHUD->AddToViewport();
-            UIFactoryHUD->AssignLines(ProductionLines);
-        }
+        return A->LineID < B->LineID;
+    });
+
+    UE_LOG(LogFactory, Log, TEXT("%s registered %d production lines."), *GetName(), ProductionLines.Num());
+
+    if (!UIFactoryHUDClass)
+    {
+        UE_LOG(LogFactory, Warning, TEXT("%s: UIFactoryHUDClass is not set, the HUD will not be created."), *GetName());
+        return;
+    }
+
+    UIFactoryHUD = CreateWidget<UUIFactoryHUD>(GetWorld(), UIFactoryHUDClass);
+    if (UIFactoryHUD)
+    {
+        UIFactoryHUD->AddToViewport();
+        UIFactoryHUD->AssignLines(ProductionLines);
     }
 }
 
@@ -50,14 +58,24 @@ void ACentralManager::OnProductionLineStateChanged(EProductionState NewState, in
 {
     ProductionLineStates.Add(LineID, NewState);
 
-    if (GEngine)
-        GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Blue, FString::Printf(TEXT("Line %d state changed to %s"), LineID, *UEnum::GetValueAsString(NewState)));
+    const FString StateName = UEnum::GetDisplayValueAsText(NewState).ToString();
+    UE_LOG(LogFactory, Log, TEXT("Line %d state changed to %s"), LineID, *StateName);
+
+    if (bShowOnScreenDebug && GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Blue, FString::Printf(TEXT("Line %d state changed to %s"), LineID, *StateName));
+    }
 
     if (NewState == EProductionState::Critical)
+    {
         DetectEmergencies();
+    }
 }
 
 void ACentralManager::DetectEmergencies()
 {
-    UIFactoryHUD->UpdateWarningVisibility(true);
+    if (UIFactoryHUD)
+    {
+        UIFactoryHUD->UpdateWarningVisibility(true);
+    }
 }
