@@ -1,0 +1,64 @@
+name: Release
+
+# Push a tag such as v1.0.0 to publish a release with the Factory console simulation
+# for Windows and Linux. A packaged build of the Unreal project can be attached to the
+# same release by hand (it has to be built with Unreal Engine on Windows).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: factory_sim-linux-x64.tar.gz
+          - os: windows-latest
+            asset: factory_sim-windows-x64.zip
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            05_Factory/Tests
+            05_Factory/Project/Source
+          sparse-checkout-cone-mode: true
+      - run: cmake -S 05_Factory/Tests -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --config Release --parallel
+      - run: ctest --test-dir build --build-config Release --output-on-failure
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: tar -czf ${{ matrix.asset }} -C build factory_sim
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path build/Release/factory_sim.exe -DestinationPath ${{ matrix.asset }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            **Factory console simulation**: the engine-independent core of the `05_Factory` Unreal project
+            (same state rules, random-walk updates and emergency countdown), as a command-line program.
+
+            ```
+            factory_sim --lines 3 --steps 120 --seed 42 --delta 10
+            ```

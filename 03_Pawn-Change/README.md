@@ -5,7 +5,7 @@ spawn next to idle AI characters and take control of them by bumping into them.
 
 <!-- MEDIA: GIF of a player switching into an AI character. -->
 
-**Engine:** Unreal Engine 5.4 · **Tech:** Blueprints, replication (RepNotify) · **Report:** [Documentation_ES.pdf](Documentation_ES.pdf) (Spanish)
+**Engine:** Unreal Engine 5.8 · **Tech:** Blueprints, replication (RepNotify) · **Report:** [Docs/Report.md](Docs/Report.md)
 
 ## Features
 

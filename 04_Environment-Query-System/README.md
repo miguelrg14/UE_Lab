@@ -6,7 +6,7 @@ find, collect and deliver resources.
 
 <!-- MEDIA: GIF of the farming map with the EQS debugger on. -->
 
-**Engine:** Unreal Engine 5.4 · **Tech:** Blueprints, Behavior Trees, Blackboard, EQS · **Report:** [Documentation_ES.pdf](Documentation_ES.pdf) (Spanish)
+**Engine:** Unreal Engine 5.8 · **Tech:** Blueprints, Behavior Trees, Blackboard, EQS · **Report:** [Docs/Report.md](Docs/Report.md)
 
 ## Contents
 
