@@ -22,7 +22,7 @@ jobs:
           - os: windows-latest
             asset: factory_sim-windows-x64.zip
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           sparse-checkout: |
             05_Factory/Tests
@@ -38,7 +38,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: Compress-Archive -Path build/Release/factory_sim.exe -DestinationPath ${{ matrix.asset }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.asset }}
           path: ${{ matrix.asset }}
@@ -47,7 +47,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           path: dist
           merge-multiple: true
