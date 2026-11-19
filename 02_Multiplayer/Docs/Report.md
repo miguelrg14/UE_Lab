@@ -1,6 +1,7 @@
 # Multiplayer FPS — Report
 
 > English translation of the original report (Spanish) for *Digital Post-production*, Game Design & Development degree, 4th year (UDIT). First practice of the first semester, 2023/24.
+> Asset names are those of the original submission; the project README lists the current ones.
 > Author: Miguel Rodríguez Gallego.
 
 ## Introduction, goals and motivation

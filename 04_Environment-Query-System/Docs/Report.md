@@ -1,6 +1,7 @@
 # Farming EQS — Report
 
 > English translation of the original report (Spanish) for *Technologies III*, Game Design & Development degree (UDIT), academic year 2024/2025. Submitted 29/01/2025.
+> Asset names are those of the original submission; the project README lists the current ones.
 > Author: Miguel Rodríguez Gallego.
 
 ## 1. Introduction

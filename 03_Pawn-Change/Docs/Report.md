@@ -1,6 +1,7 @@
 # Multiplayer Pawn Swap — Report
 
 > English translation of the original report (Spanish) for *Digital Post-production*, Game Design & Development degree, 4th year (UDIT). Second practice of the first semester, 2023/24. Submitted 11/01/2024.
+> Asset names are those of the original submission; the project README lists the current ones.
 > Author: Miguel Rodríguez Gallego.
 
 ## Introduction

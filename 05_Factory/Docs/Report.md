@@ -1,6 +1,7 @@
 # Automated Factory Resource Management Simulator — Report
 
 > English translation of the original technical report (Spanish) for *Technologies III*, academic year 2024/2025 (UDIT).
+> Asset names are those of the original submission; the project README lists the current ones.
 > Author: Miguel Rodríguez Gallego. Original engine: Unreal Engine 5.4 / C++.
 >
 > The code has since been reviewed (thread safety, GC-safe references, a single update path, unit tests) and

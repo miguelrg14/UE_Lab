@@ -1,6 +1,7 @@
 # Reverse-Engineering Materials — Report
 
 > English translation of the original report (Spanish) written for *Video Game Technologies and Virtual Environments II* (ESNE). Practice 1: Materials.
+> Asset names are those of the original submission; the project README lists the current ones.
 > Author: Miguel Rodríguez Gallego.
 
 The exercise: study three materials shown in class, explain how each node works, think of uses for them and rebuild each one in Unreal Engine.
