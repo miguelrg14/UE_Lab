@@ -7,7 +7,7 @@ player can react when a line becomes critical.
 
 <!-- MEDIA: GIF of the HUD with a line going Critical and being reset. -->
 
-**Engine:** Unreal Engine 5.4 · **Tech:** C++, UMG · **Report:** [Documentation_ES.pdf](Documentation_ES.pdf) (Spanish)
+**Engine:** Unreal Engine 5.8 · **Tech:** C++, UMG · **Report:** [Docs/Report.md](Docs/Report.md)
 
 ## Architecture
 

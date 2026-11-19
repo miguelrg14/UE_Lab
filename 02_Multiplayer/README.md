@@ -6,7 +6,7 @@ replication: what runs on the server, what is multicast, and what each client se
 
 <!-- MEDIA: GIF of two clients fighting (Play → Net Mode: Play As Listen Server, 2 players). -->
 
-**Engine:** Unreal Engine 5.6 · **Tech:** Blueprints, Enhanced Input, Chaos Destruction · **Report:** [Documentation_ES.pdf](Documentation_ES.pdf) (Spanish, 34 pages)
+**Engine:** Unreal Engine 5.8 · **Tech:** Blueprints, Enhanced Input, Chaos Destruction · **Report:** [Docs/Report.md](Docs/Report.md)
 
 ## Features
 

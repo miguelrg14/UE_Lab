@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "portfolio-*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  factory-core:
+    name: Factory core (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Only the C++ sources are needed: skip the Unreal content (hundreds of MB).
+          sparse-checkout: |
+            05_Factory/Tests
+            05_Factory/Project/Source
+          sparse-checkout-cone-mode: true
+
+      - name: Configure
+        run: cmake -S 05_Factory/Tests -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build --build-config Release --output-on-failure
+
+      - name: Run the console simulation
+        shell: bash
+        run: |
+          exe=build/factory_sim
+          [ -f build/Release/factory_sim.exe ] && exe=build/Release/factory_sim.exe
+          "$exe" --lines 3 --steps 120 --seed 2025 --delta 10
+
+  repo-checks:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Project descriptors, forbidden files and Markdown links
+        run: python tools/check_repo.py
