@@ -63,3 +63,7 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# Per-user editor folders
+**/Content/Developers/
+**/Content/Collections/
