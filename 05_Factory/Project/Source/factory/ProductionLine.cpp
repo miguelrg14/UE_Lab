@@ -1,5 +1,6 @@
 #include "ProductionLine.h"
 #include "factory.h"
+#include "Core/FactoryRules.h"
 #include "Async/Async.h"
 #include "Engine/World.h"
 #include "Math/RandomStream.h"
@@ -31,17 +32,16 @@ void AProductionLine::InitiateMonitoring()
     GetWorldTimerManager().SetTimer(Timer_Update, this, &AProductionLine::UpdateData, UpdateInterval, true);
 }
 
+// EProductionState and FactoryRules::ELineState must stay in the same order.
+static_assert(static_cast<uint8>(EProductionState::Operational) == static_cast<uint8>(FactoryRules::ELineState::Operational)
+    && static_cast<uint8>(EProductionState::Warning) == static_cast<uint8>(FactoryRules::ELineState::Warning)
+    && static_cast<uint8>(EProductionState::Critical) == static_cast<uint8>(FactoryRules::ELineState::Critical),
+    "EProductionState must match FactoryRules::ELineState");
+
 EProductionState AProductionLine::ComputeState(float InEfficiency, float InResourceLevel, float InOperationalThreshold, float InWarningThreshold)
 {
-    if (InEfficiency >= InOperationalThreshold && InResourceLevel >= InOperationalThreshold)
-    {
-        return EProductionState::Operational;
-    }
-    if (InEfficiency >= InWarningThreshold && InResourceLevel >= InWarningThreshold)
-    {
-        return EProductionState::Warning;
-    }
-    return EProductionState::Critical;
+    const FactoryRules::FThresholds Thresholds{InOperationalThreshold, InWarningThreshold};
+    return static_cast<EProductionState>(FactoryRules::Evaluate(InEfficiency, InResourceLevel, Thresholds));
 }
 
 void AProductionLine::UpdateData()
@@ -59,8 +59,8 @@ void AProductionLine::UpdateData()
     {
         // Local random stream: each task owns its generator instead of sharing global state across threads.
         FRandomStream Stream(Seed);
-        const float NewEfficiency = FMath::Clamp(StartEfficiency + Stream.FRandRange(-MaxDelta, MaxDelta), 0.f, 100.f);
-        const float NewResourceLevel = FMath::Clamp(StartResourceLevel + Stream.FRandRange(-MaxDelta, MaxDelta), 0.f, 100.f);
+        const float NewEfficiency = FactoryRules::Step(StartEfficiency, Stream.FRandRange(-1.f, 1.f), MaxDelta);
+        const float NewResourceLevel = FactoryRules::Step(StartResourceLevel, Stream.FRandRange(-1.f, 1.f), MaxDelta);
 
         // Back to the game thread to touch UObjects and broadcast delegates.
         AsyncTask(ENamedThreads::GameThread, [WeakThis, NewEfficiency, NewResourceLevel]()
@@ -77,8 +77,8 @@ void AProductionLine::ApplyValues(float NewEfficiency, float NewResourceLevel)
 {
     check(IsInGameThread());
 
-    Efficiency = NewEfficiency;
-    ResourceLevel = NewResourceLevel;
+    Efficiency = FactoryRules::ClampValue(NewEfficiency);
+    ResourceLevel = FactoryRules::ClampValue(NewResourceLevel);
 
     const EProductionState NewState = ComputeState(Efficiency, ResourceLevel, OperationalThreshold, WarningThreshold);
     if (NewState != CurrentState)
@@ -99,6 +99,5 @@ void AProductionLine::ResetLine()
 
 void AProductionLine::RestoreLine(float Level)
 {
-    const float ClampedLevel = FMath::Clamp(Level, 0.f, 100.f);
-    ApplyValues(ClampedLevel, ClampedLevel);
+    ApplyValues(Level, Level);
 }
