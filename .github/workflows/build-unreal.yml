@@ -29,9 +29,19 @@ jobs:
         shell: powershell
         run: |
           $uat = "$env:UE_ROOT\Engine\Build\BatchFiles\RunUAT.bat"
+          $buildBat = "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat"
+          $editorCmd = "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 
           if (!(Test-Path $uat)) {
               throw "Unreal Automation Tool not found: $uat"
+          }
+
+          if (!(Test-Path $buildBat)) {
+              throw "Unreal Build Tool not found: $buildBat"
+          }
+
+          if (!(Test-Path $editorCmd)) {
+              throw "UnrealEditor-Cmd.exe not found: $editorCmd"
           }
 
           Write-Host "Unreal Engine installation found."
@@ -40,11 +50,12 @@ jobs:
       - name: Detect and package Unreal projects
         shell: powershell
         run: |
-
           $ErrorActionPreference = "Stop"
 
           $repo = $env:GITHUB_WORKSPACE
           $uat = "$env:UE_ROOT\Engine\Build\BatchFiles\RunUAT.bat"
+          $buildBat = "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat"
+          $editorCmd = "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 
           $projects = @(
               Get-ChildItem -Path $repo -Filter "*.uproject" -File -Recurse |
@@ -73,15 +84,23 @@ jobs:
                   Split-Path -Parent $projectDirectory
               )
 
+              $projectName = [System.IO.Path]::GetFileNameWithoutExtension($project.Name)
+              $editorTarget = "${projectName}Editor"
+
+              $sourceDirectory = Join-Path $projectDirectory "Source"
+              $isCpp = Test-Path $sourceDirectory
+
               Write-Host ""
               Write-Host "========================================"
               Write-Host "Building: $projectFolder"
               Write-Host "Project: $($project.FullName)"
+              Write-Host "Type: $(if ($isCpp) { 'C++' } else { 'Blueprint' })"
               Write-Host "========================================"
 
               $archiveDir = Join-Path $buildRoot $projectFolder
               $zipPath = Join-Path $dist "$projectFolder-Windows.zip"
 
+              # BuildCookRun arguments.
               $arguments = @(
                   "BuildCookRun"
                   "-project=$($project.FullName)"
@@ -100,17 +119,42 @@ jobs:
                   "-nopause"
               )
 
-              # Compile C++ projects only when Source exists.
-              if (Test-Path (Join-Path $projectDirectory "Source")) {
-                Write-Host "Enabling build for project: $projectFolder"
-                $arguments += "-build"
+              if ($isCpp) {
+
+                  # C++ project: compile Editor target first.
+                  Write-Host "C++ project detected."
+                  Write-Host "Compiling Editor target: $editorTarget"
+
+                  & $buildBat $editorTarget Win64 Development `
+                      "-Project=$($project.FullName)" `
+                      -WaitMutex `
+                      -NoHotReload
+
+                  if ($LASTEXITCODE -ne 0) {
+                      throw "Editor compilation failed for $projectFolder (exit code $LASTEXITCODE)"
+                  }
+
+                  # Compile the game target during BuildCookRun.
+                  $arguments += "-build"
+
               }
-              
-                Write-Host "Executing Unreal Automation Tool..."
-                Write-Host "Project: $($project.FullName)"
-                Write-Host "Platform: Win64"
-                Write-Host "Configuration: Shipping"
-                Write-Host "Arguments: $($arguments -join ' ')"
+              else {
+
+                  # Blueprint project: use the installed Unreal Editor.
+                  Write-Host "Blueprint project detected."
+                  Write-Host "Skipping Editor compilation."
+
+                  $arguments += "-unrealexe=$editorCmd"
+                  $arguments += "-nocompileeditor"
+                  $arguments += "-skipbuildeditor"
+              }
+
+              Write-Host ""
+              Write-Host "Executing Unreal Automation Tool..."
+              Write-Host "Project: $($project.FullName)"
+              Write-Host "Platform: Win64"
+              Write-Host "Configuration: Shipping"
+              Write-Host "Arguments: $($arguments -join ' ')"
 
               & $uat @arguments
 
