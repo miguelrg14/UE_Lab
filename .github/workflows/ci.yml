@@ -19,6 +19,14 @@ jobs:
         with:
           # Only the C++ sources are needed: skip the Unreal content (hundreds of MB).
           sparse-checkout: |
+            01_Materials/Tests
+            01_Materials/Project/Source
+            02_Multiplayer/Tests
+            02_Multiplayer/Project/Source
+            03_Pawn-Change/Tests
+            03_Pawn-Change/Project/Source
+            04_Environment-Query-System/Tests
+            04_Environment-Query-System/Project/Source
             05_Factory/Tests
             05_Factory/Project/Source
           sparse-checkout-cone-mode: true

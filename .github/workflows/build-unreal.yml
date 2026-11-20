@@ -1,0 +1,146 @@
+name: Build Unreal Projects
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: unreal-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Unreal Projects
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 360
+
+    env:
+      UE_ROOT: C:\Program Files\Epic Games\UE_5.8
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Unreal Engine
+        shell: powershell
+        run: |
+          $uat = "$env:UE_ROOT\Engine\Build\BatchFiles\RunUAT.bat"
+
+          if (!(Test-Path $uat)) {
+              throw "Unreal Automation Tool not found: $uat"
+          }
+
+          Write-Host "Unreal Engine installation found."
+          Write-Host "Using Unreal Engine at: $env:UE_ROOT"
+
+      - name: Detect and package Unreal projects
+        shell: powershell
+        run: |
+
+          $ErrorActionPreference = "Stop"
+
+          $repo = $env:GITHUB_WORKSPACE
+          $uat = "$env:UE_ROOT\Engine\Build\BatchFiles\RunUAT.bat"
+
+          $projects = @(
+              Get-ChildItem -Path $repo -Filter "*.uproject" -File -Recurse |
+              Sort-Object FullName
+          )
+
+          if ($projects.Count -eq 0) {
+              throw "No Unreal projects found."
+          }
+
+          Write-Host "Detected $($projects.Count) Unreal projects."
+
+          $buildRoot = Join-Path $env:RUNNER_TEMP "UE_Builds"
+          $dist = Join-Path $repo "dist"
+
+          Remove-Item $buildRoot -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item $dist -Recurse -Force -ErrorAction SilentlyContinue
+
+          New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
+          New-Item -ItemType Directory -Path $dist -Force | Out-Null
+
+          foreach ($project in $projects) {
+
+              $projectDirectory = Split-Path -Parent $project.FullName
+              $projectFolder = Split-Path -Leaf (
+                  Split-Path -Parent $projectDirectory
+              )
+
+              Write-Host ""
+              Write-Host "========================================"
+              Write-Host "Building: $projectFolder"
+              Write-Host "Project: $($project.FullName)"
+              Write-Host "========================================"
+
+              $archiveDir = Join-Path $buildRoot $projectFolder
+              $zipPath = Join-Path $dist "$projectFolder-Windows.zip"
+
+              $arguments = @(
+                  "BuildCookRun"
+                  "-project=$($project.FullName)"
+                  "-noP4"
+                  "-platform=Win64"
+                  "-clientconfig=Shipping"
+                  "-cook"
+                  "-allmaps"
+                  "-stage"
+                  "-pak"
+                  "-archive"
+                  "-prereqs"
+                  "-archivedirectory=$archiveDir"
+                  "-utf8output"
+                  "-unattended"
+                  "-nopause"
+              )
+
+              # Compile C++ projects only when Source exists.
+              if (Test-Path (Join-Path $projectDirectory "Source")) {
+                  Write-Host "C++ source detected. Enabling compilation."
+                  $arguments += "-build"
+              }
+
+              & $uat @arguments
+
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Build failed for $projectFolder (exit code $LASTEXITCODE)"
+              }
+
+              if (!(Test-Path $archiveDir)) {
+                  throw "Build output not found for $projectFolder"
+              }
+
+              Write-Host "Compressing $projectFolder..."
+
+              Compress-Archive `
+                  -Path "$archiveDir\*" `
+                  -DestinationPath $zipPath `
+                  -CompressionLevel Optimal `
+                  -Force
+
+              Write-Host "Created: $zipPath"
+          }
+
+          $packages = @(Get-ChildItem $dist -Filter "*.zip")
+
+          if ($packages.Count -ne $projects.Count) {
+              throw "Expected $($projects.Count) packages, but found $($packages.Count)."
+          }
+
+          Write-Host ""
+          Write-Host "All projects packaged successfully."
+
+          Get-ChildItem $dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: dist/*.zip
