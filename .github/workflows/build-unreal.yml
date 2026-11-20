@@ -138,16 +138,18 @@ jobs:
                   $arguments += "-build"
 
               }
-              else {
+                else {
 
-                  # Blueprint project: use the installed Unreal Editor.
-                  Write-Host "Blueprint project detected."
-                  Write-Host "Skipping Editor compilation."
+                    # Blueprint project: build game target without compiling Editor.
+                    Write-Host "Blueprint project detected."
+                    Write-Host "Skipping Editor compilation."
+                    Write-Host "Building game target."
 
-                  $arguments += "-unrealexe=$editorCmd"
-                  $arguments += "-nocompileeditor"
-                  $arguments += "-skipbuildeditor"
-              }
+                    $arguments += "-unrealexe=$editorCmd"
+                    $arguments += "-nocompileeditor"
+                    $arguments += "-skipbuildeditor"
+                    $arguments += "-build"
+                }
 
               Write-Host ""
               Write-Host "Executing Unreal Automation Tool..."
