@@ -102,9 +102,15 @@ jobs:
 
               # Compile C++ projects only when Source exists.
               if (Test-Path (Join-Path $projectDirectory "Source")) {
-                  Write-Host "C++ source detected. Enabling compilation."
-                  $arguments += "-build"
+                Write-Host "Enabling build for project: $projectFolder"
+                $arguments += "-build"
               }
+              
+                Write-Host "Executing Unreal Automation Tool..."
+                Write-Host "Project: $($project.FullName)"
+                Write-Host "Platform: Win64"
+                Write-Host "Configuration: Shipping"
+                Write-Host "Arguments: $($arguments -join ' ')"
 
               & $uat @arguments
 
