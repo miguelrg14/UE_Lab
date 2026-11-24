@@ -6,7 +6,9 @@ find, collect and deliver resources.
 
 **Engine:** Unreal Engine 5.8 · **Tech:** Blueprints, Behavior Trees, Blackboard, EQS · **Report:** [Docs/Report.md](Docs/Report.md)
 
-![Farming simulation assets](Docs/images/content-browser-case6.webp)
+| Farming simulation | Assets |
+|:---:|:---:|
+| ![Farmers collecting products and delivering them to the storages](Docs/images/farming-simulation.webp) | ![Farming simulation assets](Docs/images/content-browser-case6.webp) |
 
 ## Contents
 

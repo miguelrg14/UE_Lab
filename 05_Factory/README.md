@@ -7,6 +7,8 @@ player can react when a line becomes critical.
 
 **Engine:** Unreal Engine 5.8 · **Tech:** C++20, UMG, GoogleTest · **Report:** [Docs/Report.md](Docs/Report.md)
 
+![HUD with the efficiency and production of the three lines](Docs/images/hud-production-lines.webp)
+
 ## Architecture
 
 ```mermaid
