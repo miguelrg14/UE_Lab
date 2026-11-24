@@ -13,6 +13,10 @@ All of them are upgraded to **Unreal Engine 5.8**.
 |:---:|:---:|:---:|
 | ![Multiplayer FPS HUD](02_Multiplayer/Docs/images/hud-ingame.webp) | ![Pawn Change](03_Pawn-Change/Docs/images/overview.webp) | ![Distance-based colour material](01_Materials/Docs/images/material3-distance-color.webp) |
 
+| Farming EQS | Factory (C++) |
+|:---:|:---:|
+| ![Farming EQS simulation](04_Environment-Query-System/Docs/images/farming-simulation.webp) | ![Factory HUD](05_Factory/Docs/images/hud-production-lines.webp) |
+
 | # | Project | What it shows | Tech |
 |---|---------|---------------|------|
 | 01 | [Materials](01_Materials/) | Material graph authoring: animated emissives, panners, distance-based colour, fresnel, master materials + instances, reverse-engineered materials | Material Editor |
